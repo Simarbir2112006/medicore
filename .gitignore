@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Environment secrets — NEVER commit these
+.env
+*.env
+.env.local
+
+# Docker volumes persisted locally
+postgres_data/
+redis_data/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
