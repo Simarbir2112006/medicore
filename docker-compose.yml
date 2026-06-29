@@ -1,0 +1,47 @@
+services:
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: medicore_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT=2181
+      ZOOKEEPER_TICK_TIME=2000
+    ports:
+      - "2182:2181"
+  
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: medicore_kafka
+    depends_on:
+      - zookeeper # this way kafka only starts if zookeeper is ready
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181 
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: medicore_redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+  
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: medicore_timescaledb
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASS: ${DB_PASSWORD}
+      POSTGRES_db: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumns:
+      - timescale_data:/var/lib/postgres/data
+
+
+volumns:
+  timescale_data:
