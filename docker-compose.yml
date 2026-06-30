@@ -43,5 +43,5 @@ services:
       - timescale_data:/var/lib/postgres/data
 
 
-volumns:
+volumes:
   timescale_data:
