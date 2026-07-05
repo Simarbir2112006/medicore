@@ -2,8 +2,8 @@
 __pycache__/
 *.pyc
 *.pyo
-.venv/
-venv/
+.backend/
+backend/
 *.egg-info/
 
 # Environment secrets — NEVER commit these
