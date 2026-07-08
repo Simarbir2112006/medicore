@@ -54,7 +54,9 @@ def run_producer():
                 time.sleep(1)
     
     except KeyboardInterrupt:
+        print("\n","="*80)
         print("Producer stopped")
+        print("="*80)
     
     finally:
         producer.close()
