@@ -1,8 +1,9 @@
 import json
-import time
 import random
+import time
 import uuid
 from datetime import datetime, timezone
+
 from kafka import KafkaProducer
 
 KAFKA_BROKER = 'localhost:9092'
@@ -47,7 +48,7 @@ def run_producer():
                     value=vital
                 )
 
-                print(f"Sent vitals for patient: {patient_id}\nHR: {vital["heart_rate"]}\nO2: {vital["oxygen_level"]}")
+                print(f"Sent vitals for patient: {patient_id}\nHR: {vital['heart_rate']}\nO2: {vital['oxygen_level']}")
 
                 producer.flush()
                 time.sleep(1)
