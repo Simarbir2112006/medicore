@@ -23,7 +23,7 @@ def create_producer() -> KafkaProducer:
     )
 
 def generate_vital(patient_id: str) -> dict:
-    return {
+    vital =  {
         "message_id": str(uuid.uuid4()),
         "patient_id": patient_id,
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -32,6 +32,11 @@ def generate_vital(patient_id: str) -> dict:
         "blood_pressure_systolic": random.randint(110,130),
         "blood_pressure_diastolic": random.randint(65,85)
     }
+    if random.random() < 0.1:
+        vital["heart_rate"] = random.choice([30, 35, 160, 180, 200])
+        vital["oxygen_level"] = round(random.uniform(75.0, 88.0), 2)
+
+    return vital
 
 def run_producer():
     producer = create_producer()

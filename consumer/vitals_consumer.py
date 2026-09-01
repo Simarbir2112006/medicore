@@ -1,12 +1,16 @@
 import asyncio
 import json
+import sys
 import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from concurrent.futures import ThreadPoolExecutor
 
 import asyncpg
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from kafka import KafkaConsumer
+
+from anomaly.detector import PatientBaseline, detect_anomaly
 
 load_dotenv()
 
@@ -55,6 +59,11 @@ async def process_vital(record: dict, pool: asyncpg.Pool) -> None:
 
     print(f"Stored vitals for patient: {record['patient_id']}\nHR:{record['heart_rate']}\nO2:{record['oxygen_level']}")
 
+
+patient_baselines: dict[str, PatientBaseline] = {}
+executor = ThreadPoolExecutor(max_workers=4)
+
+
 async def consume():
     pool = await create_db_pool()
     print("Database pool created")
@@ -78,6 +87,22 @@ async def consume():
 
             await loop.run_in_executor(None, lambda: None)
             await process_vital(record, pool)
+
+            patient_id = record['patient_id']
+            if patient_id not in patient_baselines:
+                patient_baselines[patient_id] = PatientBaseline(patient_id=patient_id)
+
+            baseline = patient_baselines[patient_id]
+
+            anomaly = await loop.run_in_executor(
+                executor,
+                detect_anomaly,
+                record,
+                baseline,
+            )
+
+            if anomaly:
+                print(f"!!! ANOMALY DETECTED: {anomaly} !!!")
 
             consumer.commit()
     
