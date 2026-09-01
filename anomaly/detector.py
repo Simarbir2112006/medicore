@@ -3,8 +3,6 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional
 
-
-
 WINDOW_SIZE = 20
 Z_SCORE_THRESHOLD = 3.0
 

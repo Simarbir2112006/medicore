@@ -1,18 +1,21 @@
 import asyncio
 import json
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 
 import asyncpg
-from datetime import datetime, timezone
 from dotenv import load_dotenv
 from kafka import KafkaConsumer
 
 from anomaly.detector import PatientBaseline, detect_anomaly
+from redis_engine.alert_engine import create_redis_client, store_alert
 
 load_dotenv()
+
 
 KAFKA_BROKER = "localhost:9092"
 TOPIC_NAME = "patient_vitals"
@@ -25,6 +28,7 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD"),
     "database": os.getenv("DB_NAME"),
 }
+
 
 async def create_db_pool() -> asyncpg.Pool:
     return await asyncpg.create_pool(
@@ -62,7 +66,7 @@ async def process_vital(record: dict, pool: asyncpg.Pool) -> None:
 
 patient_baselines: dict[str, PatientBaseline] = {}
 executor = ThreadPoolExecutor(max_workers=4)
-
+redis_client = create_redis_client()
 
 async def consume():
     pool = await create_db_pool()
@@ -103,6 +107,8 @@ async def consume():
 
             if anomaly:
                 print(f"!!! ANOMALY DETECTED: {anomaly} !!!")
+                store_alert(redis_client, anomaly)
+                print(f"Alert stored in Redis for patient {anomaly['patient_id'][:8]}")
 
             consumer.commit()
     
