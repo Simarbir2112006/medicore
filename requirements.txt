@@ -3,7 +3,7 @@ annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.14.2
 asyncpg==0.31.0
-bcrypt==5.0.0
+bcrypt==4.0.1
 cffi==2.1.1
 click==8.5.0
 cryptography==50.0.1
@@ -20,6 +20,7 @@ pydantic==2.13.5
 pydantic_core==2.46.5
 python-dotenv==1.2.2
 python-jose==3.5.0
+python-multipart==0.0.32
 redis==8.1.0
 rsa==4.9.1
 six==1.17.0
