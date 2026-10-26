@@ -1,230 +1,225 @@
-# MediCore — Real-Time Clinical Backend System
+<div align="center">
 
-A production-grade clinical data backend built to demonstrate real-world backend engineering: real-time data ingestion, anomaly detection, caching, and a secured REST API gateway.
+# 🏥 MediCore
+
+### Real-Time Clinical Backend System
+
+![Python](https://img.shields.io/badge/Python-3.13-blue?style=flat-square&logo=python)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688?style=flat-square&logo=fastapi)
+![Kafka](https://img.shields.io/badge/Apache_Kafka-7.5-231F20?style=flat-square&logo=apachekafka)
+![Redis](https://img.shields.io/badge/Redis-7.2-DC382D?style=flat-square&logo=redis)
+![PostgreSQL](https://img.shields.io/badge/TimescaleDB-PG15-336791?style=flat-square&logo=postgresql)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker)
+
+A production-grade backend for real-time patient vitals monitoring — built with Kafka, Redis, TimescaleDB, FastAPI, and an LLM-powered clinical assistant.
+
+**[Demo Video](#)** · **[API Docs](http://localhost:8000/docs)**
+
+</div>
+
+---
+
+## Overview
+
+MediCore simulates a hospital's clinical data infrastructure. Patient monitors stream vitals data every second into a Kafka pipeline, where anomalies are detected in real time, alerts are cached in Redis, and doctors can query live data or ask an AI assistant for clinical insights — all through a JWT-secured REST and WebSocket API.
+
+The entire system starts with a single command:
+
+```bash
+docker compose up
+```
+
+---
 
 ## Architecture
 
 ```
-Patient Monitor (Simulated)
-         │
-         ▼
-   Kafka Producer
-         │
-         ▼
-   Kafka Broker (topic: patient_vitals)
-         │
-         ▼
-   Kafka Consumer (asyncio + ThreadPoolExecutor)
-    ├── TimescaleDB        ← permanent time-series storage
-    ├── Anomaly Detector   ← Z-score + hard thresholds
-    └── Redis Alert Engine ← TTL deduplication + sorted set priority queue
-         │
-         ▼
-   FastAPI Gateway (JWT auth, dependency injection)
-    ├── REST:      /patients, /vitals, /alerts
-    ├── WebSocket: /ws/vitals/{patient_id}     [in progress]
-    └── LLM:       /ask  (Groq Llama 3)        [in progress]
+┌─────────────────────────────────────────────────────────┐
+│                   Patient Monitor                        │
+│              (Simulated Vitals Producer)                 │
+└─────────────────────┬───────────────────────────────────┘
+                      │  1 reading/sec per patient
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│                  Apache Kafka                            │
+│              topic: patient_vitals                       │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│              Kafka Consumer                              │
+│         asyncio + ThreadPoolExecutor                     │
+│                                                          │
+│   ┌──────────────┐  ┌─────────────┐  ┌───────────────┐ │
+│   │ TimescaleDB  │  │  Anomaly    │  │ Redis Alert   │ │
+│   │  (vitals     │  │  Detector   │  │    Engine     │ │
+│   │  history)    │  │ (Z-score +  │  │ (TTL + sorted │ │
+│   │              │  │ thresholds) │  │    set)       │ │
+│   └──────────────┘  └─────────────┘  └───────────────┘ │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│                 FastAPI Gateway                          │
+│              JWT Auth · Pydantic v2                      │
+│                                                          │
+│   REST API  │  WebSocket Feed  │  LLM Assistant         │
+│   /alerts   │  /ws/vitals/{id} │  /ask (Groq RAG)       │
+│   /vitals   │                  │                         │
+└─────────────────────────────────────────────────────────┘
 ```
 
-## Stack
+---
 
-| Layer | Technology | Why |
-|---|---|---|
-| Message Queue | Apache Kafka | Durable, replayable, decoupled ingestion |
-| Time-Series DB | PostgreSQL + TimescaleDB | Hypertable chunking for unbounded vitals data |
-| Cache + Alerts | Redis | Sub-millisecond alert lookup, TTL-based auto-expiry |
-| API Gateway | FastAPI + Pydantic v2 | Async, auto-documented, type-safe |
-| Auth | JWT (HS256) + bcrypt | Stateless auth, secure password hashing |
-| Concurrency | asyncio + ThreadPoolExecutor | I/O-bound async, CPU-bound threaded |
-| Infrastructure | Docker + docker-compose | Single-command local deployment |
-| LLM | Groq API (Llama 3) | Clinical Q&A assistant |
+## Tech Stack
 
-## Key Engineering Decisions
+| Component | Technology |
+|---|---|
+| **Message Queue** | Apache Kafka + Zookeeper |
+| **Time-Series Database** | PostgreSQL + TimescaleDB |
+| **Cache & Alerts** | Redis |
+| **API Framework** | FastAPI + Pydantic v2 |
+| **Authentication** | JWT (HS256) + bcrypt |
+| **Concurrency** | asyncio + ThreadPoolExecutor |
+| **LLM** | Groq API (Llama 3) via RAG |
+| **Containerization** | Docker + docker-compose |
 
-**Why Kafka instead of direct DB writes?**
-Decouples the patient monitor from the processing pipeline. If the anomaly detector crashes, Kafka holds messages and replays them on restart. Zero data loss.
+---
 
-**Why TimescaleDB instead of plain PostgreSQL?**
-Hypertables automatically partition vitals data by time into chunks. A query for "last 24 hours" only scans today's chunk, not billions of historical rows. Chunk exclusion makes time-range queries fast regardless of total data size.
+## Features
 
-**Why Redis for alerts instead of querying TimescaleDB?**
-Active alerts need sub-millisecond lookup for a real-time dashboard. Redis TTL auto-expires stale alerts without a cleanup job. The sorted set enables O(log N) priority retrieval by recency.
+- **Real-time vitals ingestion** via Kafka with per-patient partition ordering
+- **Two-layer anomaly detection** — hard clinical thresholds + Z-score against each patient's personal rolling baseline
+- **Redis alert engine** with TTL-based deduplication and sorted set priority queue
+- **JWT-secured REST API** with FastAPI dependency injection
+- **WebSocket endpoint** for live vitals push to doctor dashboards (no polling)
+- **LLM clinical assistant** using RAG — fetches real patient data before calling Groq
+- **Full Docker containerization** with health checks and proper service dependency ordering
+- **TimescaleDB hypertables** for efficient time-range queries at scale
 
-**Why manual Kafka offset commits?**
-Auto-commit commits on receive, not on successful processing. If the consumer crashes between receiving and writing to TimescaleDB, the message is lost. Manual commit after confirmed DB write guarantees at-least-once delivery — a vital reading is never silently dropped.
+---
 
-**Why asyncio + ThreadPoolExecutor?**
-Database and Kafka operations are I/O-bound — asyncio handles them concurrently on one thread. Anomaly detection is CPU-bound — ThreadPoolExecutor offloads it to a worker thread so the event loop is never blocked.
+## Getting Started
+
+### Prerequisites
+
+- Docker Desktop (WSL2 backend on Windows)
+- A free [Groq API key](https://console.groq.com)
+
+### Setup
+
+```bash
+# Clone
+git clone https://github.com/Simarbir2112006/medicore.git
+cd medicore
+
+# Configure environment
+cp .env.example .env
+# Edit .env and add your values (see .env.example)
+
+# Start everything
+docker compose up
+
+# Initialize database schema (first run only)
+docker exec -i medicore_timescaledb psql -U medicore -d medicore_db < schema.sql
+```
+
+### Verify
+
+```bash
+curl http://localhost:8000/health
+# {"status": "ok", "service": "Medicore API"}
+```
+
+API docs available at `http://localhost:8000/docs`
+
+---
+
+## API Quick Reference
+
+### Login
+
+```bash
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=doctor01&password=password123"
+```
+
+### Get Active Alerts
+
+```bash
+curl http://localhost:8000/alerts \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Get Patient Vitals (last 24h)
+
+```bash
+curl http://localhost:8000/patients/{patient_id}/vitals \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Ask the Clinical Assistant
+
+```bash
+curl -X POST http://localhost:8000/ask \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"patient_id": "...", "question": "Are there any concerning patterns?"}'
+```
+
+### Live Vitals WebSocket
+
+```python
+import asyncio, websockets, json
+
+async def watch():
+    async with websockets.connect("ws://localhost:8000/ws/vitals/{patient_id}") as ws:
+        while True:
+            print(json.loads(await ws.recv()))
+
+asyncio.run(watch())
+```
+
+---
 
 ## Project Structure
 
 ```
 medicore/
 ├── producer/
-│   └── vitals_producer.py     # Simulates patient monitor, sends to Kafka
+│   └── vitals_producer.py      # Kafka producer — simulates patient monitor
 ├── consumer/
-│   └── vitals_consumer.py     # Reads Kafka, stores to DB, detects anomalies
+│   └── vitals_consumer.py      # Kafka consumer — async DB writes + anomaly detection
 ├── anomaly/
-│   └── detector.py            # Z-score + threshold anomaly detection
+│   └── detector.py             # Z-score + threshold anomaly detection
 ├── redis_engine/
-│   └── alert_engine.py        # Redis alert storage, deduplication, retrieval
+│   └── alert_engine.py         # Redis alert storage and retrieval
 ├── api/
-│   ├── main.py                # FastAPI app, endpoints
-│   ├── auth.py                # JWT creation, verification, bcrypt
-│   ├── dependencies.py        # Dependency injection (auth guard, DB pool)
-│   └── models.py              # Pydantic request/response models
-├── schema.sql                 # TimescaleDB schema and hypertable setup
-├── docker-compose.yml         # Kafka, Zookeeper, Redis, TimescaleDB
-├── .env.example               # Environment variable reference
-└── requirements.txt
+│   ├── main.py                 # FastAPI app — all endpoints
+│   ├── auth.py                 # JWT + bcrypt
+│   ├── dependencies.py         # Dependency injection
+│   ├── models.py               # Pydantic models
+│   └── llm.py                  # Groq LLM integration
+├── schema.sql                  # TimescaleDB schema and hypertable
+├── Dockerfile                  # Python image for all three services
+├── docker-compose.yml          # Full stack with health checks
+└── .env.example
 ```
 
-## Getting Started
+---
 
-### Prerequisites
-
-- Docker Desktop with WSL2 backend enabled
-- Python 3.11+
-
-### 1. Clone and configure
-
-```bash
-git clone https://github.com/Simarbir2112006/medicore.git
-cd medicore
-cp .env.example .env
-```
-
-Edit `.env` with your values:
+## Default Credentials
 
 ```
-DB_USER=medicore
-DB_PASSWORD=your_password
-DB_NAME=medicore_db
-JWT_SECRET_KEY=your-secret-key
+username: doctor01
+password: password123
 ```
 
-### 2. Start infrastructure
+For local development only.
 
-```bash
-docker compose up -d
-```
+---
 
-Starts Kafka, Zookeeper, Redis, and TimescaleDB in Docker.
-
-### 3. Set up Python environment
-
-```bash
-python3 -m venv backend
-source backend/bin/activate
-pip install -r requirements.txt
-```
-
-### 4. Initialize the database schema
-
-```bash
-docker exec -i medicore_timescaledb psql -U medicore -d medicore_db < schema.sql
-```
-
-### 5. Run the pipeline
-
-```bash
-# Terminal 1 — Vitals producer (simulates patient monitor)
-python -m producer.vitals_producer
-
-# Terminal 2 — Kafka consumer + anomaly detection + Redis alerts
-python -m consumer.vitals_consumer
-
-# Terminal 3 — REST API gateway
-uvicorn api.main:app --reload --port 8000
-```
-
-API docs available at: `http://localhost:8000/docs`
-
-## API Reference
-
-### Authentication
-
-```bash
-curl -X POST "http://localhost:8000/auth/login" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=doctor01&password=password123"
-```
-
-Returns a JWT token. Include it in all subsequent requests:
-
-```
-Authorization: Bearer YOUR_TOKEN
-```
-
-### Endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/auth/login` | Login, receive JWT token |
-| GET | `/health` | Health check (no auth required) |
-| GET | `/alerts` | Get active alerts from Redis |
-| POST | `/patients` | Register a new patient |
-| GET | `/patients/{id}/vitals` | Get vitals history (default: last 24h) |
-| GET | `/patients/{id}/vitals?hours=48` | Get vitals for custom time range |
-
-### Example: Get Active Alerts
-
-```bash
-curl -X GET "http://localhost:8000/alerts" \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-```json
-[
-  {
-    "patient_id": "bda59fef-f612-4d83-81d9-ebd22c0520e6",
-    "metric": "heart_rate",
-    "value": 200.0,
-    "severity": "critical",
-    "reason": "threshold_breach",
-    "timestamp": "2026-10-16T17:30:38+00:00"
-  }
-]
-```
-
-### Example: Get Patient Vitals
-
-```bash
-curl -X GET "http://localhost:8000/patients/bda59fef-f612-4d83-81d9-ebd22c0520e6/vitals?hours=1" \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-## Anomaly Detection
-
-Two-layer detection runs on every incoming vital reading:
-
-**Layer 1 — Hard Thresholds** (catches physically dangerous values)
-
-| Metric | Min | Max |
-|---|---|---|
-| Heart Rate | 20 bpm | 300 bpm |
-| Oxygen Level | 50% | 100% |
-| BP Systolic | 80 mmHg | 180 mmHg |
-| BP Diastolic | 50 mmHg | 110 mmHg |
-
-**Layer 2 — Z-Score** (catches deviations from a patient's personal baseline)
-
-Uses a rolling window of the last 300 readings per patient. A reading more than 3 standard deviations from the patient's own baseline triggers a `statistical_anomaly` warning — even if it falls within population-normal ranges.
-
-This catches patient-specific anomalies that fixed thresholds miss: a resting heart rate of 95 bpm is normal for most people but anomalous for a patient whose baseline is 55 bpm.
-
-## Default Test Credentials
-
-```
-Username: doctor01
-Password: password123
-```
-
-These are for local development only. Change before any deployment.
-
-## What's In Progress
-
-- **Step 9:** WebSocket endpoint for live vitals feed to doctor dashboard
-- **Step 10:** Groq LLM endpoint for clinical Q&A (`/ask`)
-- **Step 11:** Full Docker containerisation of the Python services with health checks
-- **Step 12:** Nurse dashboard — patient status, care events, pre-entry briefing
+<div align="center">
+Built with Python · FastAPI · Kafka · Redis · TimescaleDB · Docker · Groq
+</div>
