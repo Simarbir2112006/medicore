@@ -1,9 +1,10 @@
 import json
 import time
+import os
 
 import redis
 
-REDIS_HOST = "localhost"
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = 6379
 ALERT_TTL_SECONDS = 300
 ACTIVE_ALERTS_KEY = "active_alerts"

@@ -17,12 +17,12 @@ from redis_engine.alert_engine import create_redis_client, store_alert
 load_dotenv()
 
 
-KAFKA_BROKER = "localhost:9092"
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
 TOPIC_NAME = "patient_vitals"
 GROUP_ID = "medicore_workers"
 
 DB_CONFIG = {
-    "host": "localhost",
+    "host": os.getenv("DB_HOST", "localhost"),
     "port": 5432,
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),

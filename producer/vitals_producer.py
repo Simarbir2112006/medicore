@@ -3,10 +3,11 @@ import random
 import time
 import uuid
 from datetime import datetime, timezone
+import os
 
 from kafka import KafkaProducer
 
-KAFKA_BROKER = 'localhost:9092'
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
 TOPIC_NAME = "patient_vitals"
 
 PATIENT_IDS = [
