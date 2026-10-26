@@ -8,7 +8,8 @@ from contextlib import asynccontextmanager
 
 from api.auth import create_access_token, hash_password, verify_password
 from api.dependencies import get_current_user, get_db_pool, get_redis_client
-from api.models import TokenResponse, PatientCreate, AlertResponse
+from api.models import TokenResponse, PatientCreate, AlertResponse, ClinicalQuery
+from api.llm import ask_clinical_question
 from redis_engine.alert_engine import get_active_alerts
 
 load_dotenv()
@@ -127,3 +128,40 @@ async def vitals_websocket(websocket: WebSocket, patient_id: str):
         print(f"WebSocket disconnected for patient {patient_id[:8]}...")
     finally:
         await pool.close()
+
+
+@app.post("/ask")
+async def ask_clinical_assistant(
+    query: ClinicalQuery,
+    current_user: dict = Depends(get_current_user),
+):
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT recorded_at, heart_rate, oxygen_level,
+                   blood_pressure_systolic, blood_pressure_diastolic
+            FROM vitals
+            WHERE patient_id = $1
+            ORDER BY recorded_at DESC
+            LIMIT 10
+            """,
+            query.patient_id,
+        )
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail="No vitals found for this patient"
+        )
+
+    vitals_context = [dict(r) for r in rows]
+
+    answer = ask_clinical_question(query.question, vitals_context)
+
+    return {
+        "patient_id": query.patient_id,
+        "question": query.question,
+        "answer": answer,
+        "vitals_used": len(vitals_context),
+    }

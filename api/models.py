@@ -38,3 +38,7 @@ class PatientCreate(BaseModel):
     gender: Optional[str] = None
     height_cm: Optional[float] = None
     weight_kg: Optional[float] = None
+
+class ClinicalQuery(BaseModel):
+    patient_id: str
+    question: str
