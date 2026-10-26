@@ -35,37 +35,37 @@ docker compose up
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   Patient Monitor                        │
-│              (Simulated Vitals Producer)                 │
+│                   Patient Monitor                       │
+│              (Simulated Vitals Producer)                │
 └─────────────────────┬───────────────────────────────────┘
                       │  1 reading/sec per patient
                       ▼
 ┌─────────────────────────────────────────────────────────┐
-│                  Apache Kafka                            │
-│              topic: patient_vitals                       │
+│                  Apache Kafka                           │
+│              topic: patient_vitals                      │
 └─────────────────────┬───────────────────────────────────┘
                       │
                       ▼
 ┌─────────────────────────────────────────────────────────┐
-│              Kafka Consumer                              │
-│         asyncio + ThreadPoolExecutor                     │
-│                                                          │
-│   ┌──────────────┐  ┌─────────────┐  ┌───────────────┐ │
-│   │ TimescaleDB  │  │  Anomaly    │  │ Redis Alert   │ │
-│   │  (vitals     │  │  Detector   │  │    Engine     │ │
-│   │  history)    │  │ (Z-score +  │  │ (TTL + sorted │ │
-│   │              │  │ thresholds) │  │    set)       │ │
-│   └──────────────┘  └─────────────┘  └───────────────┘ │
+│              Kafka Consumer                             │
+│         asyncio + ThreadPoolExecutor                    │
+│                                                         │
+│   ┌──────────────┐  ┌─────────────┐  ┌───────────────┐  │
+│   │ TimescaleDB  │  │  Anomaly    │  │ Redis Alert   │  │
+│   │  (vitals     │  │  Detector   │  │    Engine     │  │
+│   │  history)    │  │ (Z-score +  │  │ (TTL + sorted │  │
+│   │              │  │ thresholds) │  │    set)       │  │
+│   └──────────────┘  └─────────────┘  └───────────────┘  │
 └─────────────────────┬───────────────────────────────────┘
                       │
                       ▼
 ┌─────────────────────────────────────────────────────────┐
-│                 FastAPI Gateway                          │
-│              JWT Auth · Pydantic v2                      │
-│                                                          │
+│                 FastAPI Gateway                         │
+│              JWT Auth · Pydantic v2                     │
+│                                                         │
 │   REST API  │  WebSocket Feed  │  LLM Assistant         │
 │   /alerts   │  /ws/vitals/{id} │  /ask (Groq RAG)       │
-│   /vitals   │                  │                         │
+│   /vitals   │                  │                        │
 └─────────────────────────────────────────────────────────┘
 ```
 
